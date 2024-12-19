@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package jaeger_messages;
+
+option go_package = "db/";
+
+service StorageEndpoint {
+  rpc Get (Key) returns (KeyValue) {}
+  rpc Set (KeyValue) returns (google.protobuf.Empty) {}
+  rpc Del (Key) returns (google.protobuf.Empty) {}
+}
+
+message Key{
+  string key = 1;
+}
+
+message KeyValue{
+  string key = 1;
+  string val = 2;
+}
