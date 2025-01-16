@@ -1,15 +1,16 @@
 package compute
 
 import (
+	"context"
 	"jaeger/internal/api/cache"
 	grpc2 "jaeger/internal/api/net/grpc"
 	"log/slog"
 )
 
 type Compute interface {
-	Get(key string, lg *slog.Logger) (string, bool, error)
-	Set(key, value string, lg *slog.Logger) error
-	Del(key string, lg *slog.Logger) error
+	Get(ctx context.Context, key string, lg *slog.Logger) (string, bool, error)
+	Set(ctx context.Context, key, value string, lg *slog.Logger) error
+	Del(ctx context.Context, key string, lg *slog.Logger) error
 }
 
 type Comp struct {
@@ -21,11 +22,11 @@ func NewComp(cache cache.Storage, grpcClient grpc2.StorageEndpointClient) *Comp 
 	return &Comp{cache: cache, grpcClient: grpcClient}
 }
 
-func (c Comp) Get(key string, lg *slog.Logger) (string, bool, error) {
+func (c Comp) Get(ctx context.Context, key string, lg *slog.Logger) (string, bool, error) {
 	v, ok := c.cache.Get(key)
 	if !ok {
 		lg.Debug("cache miss")
-		v, ok, err := c.grpcClient.Get(key)
+		v, ok, err := c.grpcClient.Get(ctx, key)
 		if err != nil {
 			return "", false, err
 		}
@@ -36,18 +37,18 @@ func (c Comp) Get(key string, lg *slog.Logger) (string, bool, error) {
 	return v, ok, nil
 }
 
-func (c Comp) Set(key, value string, lg *slog.Logger) error {
+func (c Comp) Set(ctx context.Context, key, value string, lg *slog.Logger) error {
 	c.cache.Set(key, value)
-	err := c.grpcClient.Set(key, value)
+	err := c.grpcClient.Set(ctx, key, value)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c Comp) Del(key string, lg *slog.Logger) error {
+func (c Comp) Del(ctx context.Context, key string, lg *slog.Logger) error {
 	c.cache.Del(key)
-	err := c.grpcClient.Del(key)
+	err := c.grpcClient.Del(ctx, key)
 	if err != nil {
 		return err
 	}

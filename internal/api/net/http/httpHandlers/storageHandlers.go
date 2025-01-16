@@ -2,6 +2,10 @@ package httpHandlers
 
 import (
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"jaeger/internal/api/compute"
@@ -29,6 +33,24 @@ func NewStorageHandlers(comp compute.Compute, logger func(c *gin.Context) *slog.
 
 func get(comp compute.Compute, logger func(c *gin.Context) *slog.Logger) func(c *gin.Context) {
 	return func(c *gin.Context) {
+		// child span
+		tracer := otel.Tracer("gin-handler")
+		ctx := c.Request.Context()
+
+		spnCtx, span := tracer.Start(ctx, "get-handler")
+		defer span.End()
+
+		span.AddEvent("your message", trace.WithAttributes(attribute.String("key", "value")))
+		//init attrs
+		span.SetAttributes(
+			semconv.ClientAddressKey.String(c.Request.RemoteAddr),
+			semconv.HTTPRequestMethodKey.String(c.Request.Method),
+			semconv.NetworkProtocolVersionKey.String(c.Request.Proto),
+			semconv.URLSchemeKey.String(c.Request.URL.Scheme),
+			semconv.URLPathKey.String(c.Request.URL.Path),
+			semconv.HostNameKey.String(c.Request.Host),
+		)
+		// logger
 		lg := logger(c)
 		b := &body{}
 		err := c.ShouldBindJSON(&b)
@@ -39,7 +61,7 @@ func get(comp compute.Compute, logger func(c *gin.Context) *slog.Logger) func(c 
 		}
 		lg.Debug("request body", "body", b)
 
-		val, _, err := comp.Get(b.Key, lg)
+		val, _, err := comp.Get(spnCtx, b.Key, lg)
 		st, ok := status.FromError(err)
 		if ok && st.Code() == codes.NotFound {
 			lg.Error("key does not exist", "key", b.Key)
@@ -62,6 +84,24 @@ func get(comp compute.Compute, logger func(c *gin.Context) *slog.Logger) func(c 
 func set(comp compute.Compute, logger func(c *gin.Context) *slog.Logger) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		lg := logger(c)
+
+		tracer := otel.Tracer("gin-handler")
+		ctx := c.Request.Context()
+
+		spnCtx, span := tracer.Start(ctx, "get-handler")
+		defer span.End()
+
+		span.AddEvent("your message", trace.WithAttributes(attribute.String("key", "value")))
+		//init attrs
+		span.SetAttributes(
+			semconv.ClientAddressKey.String(c.Request.RemoteAddr),
+			semconv.HTTPRequestMethodKey.String(c.Request.Method),
+			semconv.NetworkProtocolVersionKey.String(c.Request.Proto),
+			semconv.URLSchemeKey.String(c.Request.URL.Scheme),
+			semconv.URLPathKey.String(c.Request.URL.Path),
+			semconv.HostNameKey.String(c.Request.Host),
+		)
+
 		b := &body{}
 		err := c.ShouldBindJSON(&b)
 		if err != nil {
@@ -71,7 +111,7 @@ func set(comp compute.Compute, logger func(c *gin.Context) *slog.Logger) func(c 
 		}
 		lg.Debug("request body", "body", b)
 
-		err = comp.Set(b.Key, b.Val, lg)
+		err = comp.Set(spnCtx, b.Key, b.Val, lg)
 		if err != nil {
 			lg.Error("db connection error", "error", err)
 			c.JSON(http.StatusInternalServerError, errorMsg{Err: err.Error()})
@@ -86,6 +126,24 @@ func set(comp compute.Compute, logger func(c *gin.Context) *slog.Logger) func(c 
 func del(comp compute.Compute, logger func(c *gin.Context) *slog.Logger) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		lg := logger(c)
+
+		tracer := otel.Tracer("gin-handler")
+		ctx := c.Request.Context()
+
+		spnCtx, span := tracer.Start(ctx, "get-handler")
+		defer span.End()
+
+		span.AddEvent("your message", trace.WithAttributes(attribute.String("key", "value")))
+		//init attrs
+		span.SetAttributes(
+			semconv.ClientAddressKey.String(c.Request.RemoteAddr),
+			semconv.HTTPRequestMethodKey.String(c.Request.Method),
+			semconv.NetworkProtocolVersionKey.String(c.Request.Proto),
+			semconv.URLSchemeKey.String(c.Request.URL.Scheme),
+			semconv.URLPathKey.String(c.Request.URL.Path),
+			semconv.HostNameKey.String(c.Request.Host),
+		)
+
 		b := &body{}
 		err := c.ShouldBindJSON(&b)
 		if err != nil {
@@ -94,7 +152,7 @@ func del(comp compute.Compute, logger func(c *gin.Context) *slog.Logger) func(c 
 		}
 		lg.Debug("request body", "body", b)
 
-		err = comp.Del(b.Key, lg)
+		err = comp.Del(spnCtx, b.Key, lg)
 		if err != nil {
 			lg.Error("db connection error", "error", err)
 			c.JSON(http.StatusInternalServerError, errorMsg{Err: err.Error()})
